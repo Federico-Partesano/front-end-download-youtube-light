@@ -1,24 +1,24 @@
-import React from 'react';
-import logo from './logo.svg';
-import './App.css';
+import React, { useEffect } from "react";
+import logo from "./logo.svg";
+import "./App.scss";
+import Home from "./pages/Home/Home";
+import socketIOClient, { Socket } from "socket.io-client";
+import { basicApi } from "./enviroument";
+
+export let socketConnection: ReturnType<typeof socketIOClient> | null = null;
 
 function App() {
+  useEffect(() => {
+    socketConnection = socketIOClient(basicApi).connect();
+    socketConnection && socketConnection.emit("conn", { message: "connected" });
+    return () => {
+      socketConnection!.disconnect();
+    };
+  }, []);
+
   return (
     <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
+      <Home />
     </div>
   );
 }

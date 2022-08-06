@@ -3,14 +3,24 @@ import ReactDOM from 'react-dom/client';
 import './index.scss';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
-import { ChakraProvider } from '@chakra-ui/react'
+import { ChakraProvider, extendTheme, ThemeConfig } from '@chakra-ui/react'
 
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
 );
+
+// 2. Add your color mode config
+const config: ThemeConfig = {
+  initialColorMode: 'dark',
+  useSystemColorMode: false,
+}
+
+// 3. extend the theme
+const theme = extendTheme({ config })
+
 root.render(
   <React.StrictMode>
- <ChakraProvider>
+ <ChakraProvider theme={theme}>
       <App />
     </ChakraProvider>
   </React.StrictMode>

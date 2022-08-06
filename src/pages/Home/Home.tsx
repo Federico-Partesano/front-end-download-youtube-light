@@ -1,5 +1,4 @@
 import {
-  AspectRatio,
   Box,
   Container,
   Heading,
@@ -11,22 +10,25 @@ import {
   Progress,
 } from "@chakra-ui/react";
 import axios from "axios";
-import { error } from "console";
-import React, { FC, useEffect, useState } from "react";
-import * as yt from "youtube-search-without-api-key";
+import React, { FC, useEffect, useRef, useState } from "react";
 import { socketConnection } from "../../App";
 import Card from "../../components/Card/Card";
 import { basicApi } from "../../enviroument";
-
+import debounce from "lodash.debounce";
 import "./Home.scss";
 const downloadjs = require('downloadjs');
 
 interface IHome {}
-let selectedVideoId= "";
-let selectedTrack = "audio.mp3";
+let selectedVideoId: null | string = null;
+
+const debouncedFetchVideo = debounce(async (term: string, loadVideo: (term: string) => void) => {
+  loadVideo(term);
+}, 200 )
+
 
 let closeToast:   null | (() => void) = null;
 const Home: FC<IHome> = () => {
+  const selectedTrack = useRef("audio.mp3");
   const [data, setData] = useState<any[]>();
   const toast = useToast();
   const [term, setTerm] = useState("");
@@ -50,19 +52,23 @@ const Home: FC<IHome> = () => {
     setCanDownload(status === "downloading" ? true : false);
   };
   useEffect(() => {
-      socketConnection?.on("status", ({ status }) => {
-        console.log('change', status)
-
+      socketConnection?.on("status", ({ status, videoId }) => {
+        setCanDownload(status === "downloading" ? true : false);
+        if(videoId !== selectedVideoId) return;
         if(status === "await"){
          closeToast && closeToast();
          var x=new XMLHttpRequest();
          x.open( "GET", `${basicApi}/youtube/downloaded-song` , true);
          x.responseType="blob";
-         x.onload= function(e){downloadjs((e!.target! as any).response, selectedTrack, "audio/mp3");};
+         x.onload= function(e){downloadjs((e!.target! as any).response, selectedTrack.current, "audio/mp3");
+         selectedTrack.current = "audio.mp3";
+         selectedVideoId = null;
+        };
          x.send();
         }
-      setCanDownload(status === "downloading" ? true : false);
+     
     });
+  // eslint-disable-next-line
   }, [socketConnection]);
 
   useEffect(() => {
@@ -70,11 +76,24 @@ const Home: FC<IHome> = () => {
   }, [])
   
 
+  useEffect(() => {
+    debouncedFetchVideo(term, loadVideo);
+  }, [term])
+  
+
   const handleDownload = async(videoId: string, title: string) => {
-    selectedTrack = `${title}.mp3`;
-    selectedVideoId = videoId
+    selectedTrack.current = `${title}.mp3`;
+    selectedVideoId = videoId;
     setCanDownload(true);
     const {data} = await axios.get(`${basicApi}/youtube/song?videoId=${videoId}`);
+    if(data.status === "await") {
+      toast({
+        position: "bottom",
+        duration: 2000,
+        title: "Aspetta",
+        description: "Gìà c'è un download in corso, attendere..."
+      });
+    }
     console.log('data', data)
     toast({
       position: "bottom",
@@ -96,16 +115,15 @@ const Home: FC<IHome> = () => {
             <Heading className="special-elite-font" size="2xl">
               YouTube Downloader
             </Heading>
-            <Text>Convert and download Youtube videos in MP3 free</Text>
+            <Text>Ciao Mario per scaricare una canzone inserisci il suo nome nel campo sottostante, cercherà la canzone direttamente da youtube, clicca su download, attendi e se tutto andrà a buon fine in automatico ti inserirà nella cartella dowload la canzone scelta.</Text>
           </Box>
           <Input
             onChange={({ currentTarget: { value } }: any) => {
               setTerm(value);
-              loadVideo(value);
             }}
-            placeholder="Basic usage"
+            placeholder="Barra di ricerca"
           />
-          <div>
+          <div className="mt-4">
             {data &&
               data.map((item) => {
                 return (
